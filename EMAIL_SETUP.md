@@ -44,7 +44,7 @@ Then **Deployments** → ⋯ on the latest → **Redeploy**.
    - **Events:** tick **Insert** only
    - **Type:** **HTTP Request**
    - **Method:** `POST`
-   - **URL:** `https://outterspacepopup-bamdalas6.vercel.app/api/guest-confirmation`
+   - **URL:** `https://outterspacepopup.vercel.app/api/guest-confirmation`
      (use your custom domain instead if you add one)
    - **HTTP Headers:** add `Content-type` = `application/json`, and add `x-webhook-secret` = the same string you used
      for `GUEST_WEBHOOK_SECRET`

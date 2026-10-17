@@ -9,7 +9,7 @@ const text = Space_Grotesk({ subsets: ["latin"], variable: "--f-text", display: 
 // added as production); NEXT_PUBLIC_SITE_URL overrides it.
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://outterspacepopup-bamdalas6.vercel.app");
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://outterspacepopup.vercel.app");
 
 const TITLE = "Outterspace — Cowboy Series Pop-Up";
 const DESCRIPTION = "The first Outterspace pop-up, November 2026. Join the guest list for the Cowboy Series SS26 and open the full lookbook.";
