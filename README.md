@@ -17,8 +17,28 @@ and circle buttons, bento cards) in Next.js 16 with Motion.
 ```bash
 npm install
 npm run dev        # http://127.0.0.1:3400
-npm run build      # static site in ./out, host it anywhere
+npm run build      # production build
+npm start          # run the production build on http://127.0.0.1:3400
 ```
+
+## Deploy on Vercel
+
+1. Sign in at https://vercel.com with GitHub, click **Add New → Project**, and import
+   **Bamdalas6/outterspacepopup**. (If it is not listed, click **Adjust GitHub App Permissions** and allow the repo.)
+2. Vercel detects **Next.js** on its own. Leave Build Command, Output Directory and Install Command on their defaults.
+3. Open **Environment Variables** and add both, for Production, Preview and Development:
+
+   | Name | Value |
+   | --- | --- |
+   | `NEXT_PUBLIC_SUPABASE_URL` | your Supabase Project URL |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | your Supabase publishable (anon) key |
+
+4. Click **Deploy**. Every push to `main` deploys again automatically; other branches get preview links.
+5. To use your own domain (for example `popup.outterspaceluxury.com`): Project → **Settings → Domains → Add**, then add
+   the DNS record Vercel shows at your domain provider.
+
+The variables are read when the site is built, so after changing one, redeploy (Deployments → ⋯ → **Redeploy**).
+Nothing else needs setting up in Supabase for Vercel: the admin sign-in uses email and password, not redirect links.
 
 ## Where registrations go
 

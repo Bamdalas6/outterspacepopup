@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --port 3400",
     "build": "next build",
-    "start": "npx --yes serve@14 out -l 3400",
+    "start": "next start --port 3400",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
