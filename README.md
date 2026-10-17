@@ -25,8 +25,8 @@ npm start          # serve ./out on http://127.0.0.1:3400
 
 1. Sign in at https://vercel.com with GitHub, click **Add New → Project**, and import
    **Bamdalas6/outterspacepopup**. (If it is not listed, click **Adjust GitHub App Permissions** and allow the repo.)
-2. Vercel detects **Next.js** on its own. Leave Build Command and Install Command on their defaults. Output Directory
-   can stay on the default or be `out`: both work, because the build writes the finished site to `out`.
+2. Leave the build settings as Vercel shows them: `vercel.json` in this repo sets them (install `npm ci`, build
+   `npm run build`, serve the `out` folder) and overrides whatever the dashboard says.
 3. Open **Environment Variables** and add both, for Production, Preview and Development:
 
    | Name | Value |
@@ -35,6 +35,7 @@ npm start          # serve ./out on http://127.0.0.1:3400
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | your Supabase publishable (anon) key |
 
 4. Click **Deploy**. Every push to `main` deploys again automatically; other branches get preview links.
+   If the site shows a Vercel login page, turn off **Settings → Deployment Protection → Vercel Authentication**.
 5. To use your own domain (for example `popup.outterspaceluxury.com`): Project → **Settings → Domains → Add**, then add
    the DNS record Vercel shows at your domain provider.
 
