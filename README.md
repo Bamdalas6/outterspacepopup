@@ -17,15 +17,16 @@ and circle buttons, bento cards) in Next.js 16 with Motion.
 ```bash
 npm install
 npm run dev        # http://127.0.0.1:3400
-npm run build      # production build
-npm start          # run the production build on http://127.0.0.1:3400
+npm run build      # static site in ./out
+npm start          # serve ./out on http://127.0.0.1:3400
 ```
 
 ## Deploy on Vercel
 
 1. Sign in at https://vercel.com with GitHub, click **Add New → Project**, and import
    **Bamdalas6/outterspacepopup**. (If it is not listed, click **Adjust GitHub App Permissions** and allow the repo.)
-2. Vercel detects **Next.js** on its own. Leave Build Command, Output Directory and Install Command on their defaults.
+2. Vercel detects **Next.js** on its own. Leave Build Command and Install Command on their defaults. Output Directory
+   can stay on the default or be `out`: both work, because the build writes the finished site to `out`.
 3. Open **Environment Variables** and add both, for Production, Preview and Development:
 
    | Name | Value |

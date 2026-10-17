@@ -1,29 +1,16 @@
 import type { NextConfig } from "next";
 
-// Built for Vercel: a normal Next.js build, which Vercel detects and deploys with no extra settings. Every page is still
-// pre-rendered to static HTML at build time and served from Vercel's edge; the guest list talks to Supabase straight
-// from the browser, so there is no server code to run.
-
-const security = [
-  { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "X-Frame-Options", value: "SAMEORIGIN" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-];
+// A fully static site: `next build` writes plain files to ./out. Vercel serves that with either project setting (the
+// Next.js preset, or Output Directory "out"), and so can any other host. The guest list talks to Supabase straight
+// from the browser, so there is no server code. Security and caching headers live in vercel.json, where Vercel applies
+// them to the static files.
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  output: "export",
   trailingSlash: true,
+  images: { unoptimized: true },
   allowedDevOrigins: ["127.0.0.1"],
-  async headers() {
-    return [
-      { source: "/:path*", headers: security },
-      // The admin page should never show up in search results or be cached by a shared cache.
-      { source: "/admin/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, { key: "Cache-Control", value: "private, no-store" }] },
-      // Product pictures and campaign photos never change under the same name, so browsers can keep them for a week.
-      { source: "/:dir(garments|editorial)/:file*", headers: [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=86400" }] },
-    ];
-  },
 };
 
 export default nextConfig;
