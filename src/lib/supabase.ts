@@ -2,6 +2,8 @@
 
 // The Supabase client for the browser. The URL and the public (anon / publishable) key are safe to ship in the site:
 // the database's Row Level Security only lets this key add guest list rows, and only signed-in admins can read them.
+// They come from NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (.env.local locally, Environment Variables
+// on Vercel), which are baked in when the site is built.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
@@ -12,7 +14,7 @@ export const supabaseReady = Boolean(url && key);
 
 let client: SupabaseClient | null = null;
 export function supabase(): SupabaseClient {
-  if (!supabaseReady) throw new Error("Supabase is not set up: add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local");
+  if (!supabaseReady) throw new Error("Supabase is not set up: add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, then rebuild");
   client ??= createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true } });
   return client;
 }

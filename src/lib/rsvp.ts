@@ -48,17 +48,17 @@ export function setGuest(firstName: string) {
 export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 export const PHONE = /^\+?[\d\s()-]{7,20}$/;
 
-export type SaveResult = "saved" | "already" | "offline";
+export type SaveResult = "saved" | "already";
 
 /**
  * Saves one registration. "already" means this email is on the list (the database allows one registration per email),
- * which the form treats as a success. Throws on any other failure so the form can ask the guest to try again.
+ * which the form treats as a success. Throws on any other failure, including a site built without its Supabase
+ * settings, so the guest is asked to try again and is never told they are on the list when nothing was saved.
  */
 export async function saveRsvp(r: Rsvp): Promise<SaveResult> {
   if (!supabaseReady) {
-    // Not connected yet (local development before .env.local is filled in): let the flow be tried out, save nothing.
-    console.warn("Supabase is not set up, so this registration was not saved anywhere. See SUPABASE_SETUP.md.");
-    return "offline";
+    console.error("Supabase is not set up: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY were missing when this site was built.");
+    throw new Error("Guest list is not connected");
   }
   const { error } = await supabase().from("guest_list").insert({
     name: r.name,
