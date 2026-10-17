@@ -49,6 +49,8 @@ Into a Supabase table (`guest_list`). Follow **SUPABASE_SETUP.md** once: create 
 
 - **See and export them:** open `/admin`, sign in, and use **Download Excel** (two sheets: the full guest list and a
   summary by Coming as, city and favourite look). You can also browse and export CSV in Supabase's Table Editor.
+- **Confirmation email:** every new guest gets a branded "See you there" email straight away, sent by
+  `api/guest-confirmation.ts` through Resend when Supabase reports a new row. Set it up with **EMAIL_SETUP.md**.
 - **Security:** the public site can only add registrations; only signed-in admins can read or remove them. One
   registration per email.
 
