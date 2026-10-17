@@ -25,11 +25,11 @@ async function downloadExcel(rows: GuestRow[]) {
   const { default: writeXlsxFile } = await import("write-excel-file/browser");
   const bold = (value: string) => ({ value, fontWeight: "bold" as const });
   const guests = [
-    [bold("Registered"), bold("Name"), bold("Email"), bold("Phone / WhatsApp"), bold("Coming as"), bold("Instagram"), bold("City"), bold("People"), bold("Favourite look")],
+    [bold("Registered"), bold("Name"), bold("Phone / WhatsApp"), bold("Instagram"), bold("Email"), bold("Coming as"), bold("City"), bold("People"), bold("Favourite look")],
     ...rows.map((r) => [
       { value: new Date(r.created_at), type: Date, format: "dd/mm/yyyy hh:mm" },
-      { value: r.name }, { value: r.email }, { value: r.phone }, { value: r.coming_as },
-      { value: r.instagram ?? "" }, { value: r.city ?? "" },
+      { value: r.name }, { value: r.phone }, { value: r.instagram ?? "" }, { value: r.email }, { value: r.coming_as },
+      { value: r.city ?? "" },
       { value: r.guests, type: Number }, { value: r.favourite_look ?? "" },
     ]),
   ];
@@ -55,7 +55,7 @@ async function downloadExcel(rows: GuestRow[]) {
     ...count((r) => r.favourite_look ?? "").map(([k, v]) => [{ value: k }, { value: v.regs, type: Number }, { value: v.people, type: Number }]),
   ];
   await writeXlsxFile([
-    { data: guests, sheet: "Guest list", columns: [{ width: 18 }, { width: 24 }, { width: 30 }, { width: 20 }, { width: 20 }, { width: 18 }, { width: 16 }, { width: 8 }, { width: 28 }], stickyRowsCount: 1 },
+    { data: guests, sheet: "Guest list", columns: [{ width: 18 }, { width: 24 }, { width: 20 }, { width: 20 }, { width: 30 }, { width: 20 }, { width: 16 }, { width: 8 }, { width: 28 }], stickyRowsCount: 1 },
     { data: summary, sheet: "Summary", columns: [{ width: 34 }, { width: 16 }, { width: 12 }] },
   ] as never).toFile(`outterspace-guest-list-${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
@@ -177,13 +177,15 @@ export default function Admin() {
 
           <div className="admin-table">
             <table>
-              <thead><tr><th>Registered</th><th>Name</th><th>Email</th><th>Phone</th><th>Coming as</th><th>Instagram</th><th>City</th><th>People</th><th>Favourite look</th><th /></tr></thead>
+              <thead><tr><th>Registered</th><th>Name</th><th>Phone / WhatsApp</th><th>Instagram</th><th>Email</th><th>Coming as</th><th>City</th><th>People</th><th>Favourite look</th><th /></tr></thead>
               <tbody>
                 {shown.map((r) => (
                   <tr key={r.id}>
-                    <td>{when(r.created_at)}</td><td><b>{r.name}</b></td><td><a href={`mailto:${r.email}`}>{r.email}</a></td>
+                    <td>{when(r.created_at)}</td><td><b>{r.name}</b></td>
                     <td><a href={`https://wa.me/${r.phone.replace(/[^\d]/g, "")}`} target="_blank" rel="noopener">{r.phone}</a></td>
-                    <td><span className="admin-tag">{r.coming_as}</span></td><td>{r.instagram ?? "–"}</td><td>{r.city ?? "–"}</td>
+                    <td>{r.instagram ? <a href={`https://instagram.com/${r.instagram.replace(/^@/, "")}`} target="_blank" rel="noopener">{r.instagram}</a> : "–"}</td>
+                    <td><a href={`mailto:${r.email}`}>{r.email}</a></td>
+                    <td><span className="admin-tag">{r.coming_as}</span></td><td>{r.city ?? "–"}</td>
                     <td>{r.guests}</td><td>{r.favourite_look ?? "–"}</td>
                     <td><button type="button" className="admin-remove" onClick={() => remove(r)} aria-label={`Remove ${r.name}`}>Remove</button></td>
                   </tr>

@@ -48,6 +48,18 @@ export function setGuest(firstName: string) {
 export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 export const PHONE = /^\+?[\d\s()-]{7,20}$/;
 
+/**
+ * Turns whatever a guest types for Instagram (@handle, handle, or a pasted instagram.com/handle link) into "@handle",
+ * or returns null if it is not a valid Instagram username (1–30 letters, numbers, dots and underscores).
+ */
+export function instagramHandle(input: string): string | null {
+  let s = input.trim();
+  const link = s.match(/instagram\.com\/([^/?#\s]+)/i);
+  if (link) s = link[1]!;
+  s = s.replace(/^@+/, "");
+  return /^(?!.*\.\.)(?!\.)[A-Za-z0-9._]{1,30}(?<!\.)$/.test(s) ? `@${s}` : null;
+}
+
 export type SaveResult = "saved" | "already";
 
 /**
