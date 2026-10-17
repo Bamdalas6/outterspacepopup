@@ -1,27 +1,19 @@
-// The guest list confirmation email: a table-based layout with inline styles so it holds together in Gmail, Outlook and
+// The guest list confirmation email (plain JavaScript so Vercel loads it with no compile step): a table-based layout with inline styles so it holds together in Gmail, Outlook and
 // Apple Mail, plus a plain-text version. Files starting with "_" in /api are helpers, not endpoints.
 
-export type GuestRecord = {
-  id?: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-  coming_as?: string;
-  city?: string | null;
-  guests?: number;
-  favourite_look?: string | null;
-};
+/** @typedef {{ id?: string, name?: string, email?: string, phone?: string, coming_as?: string, city?: string | null, guests?: number, favourite_look?: string | null }} GuestRecord */
 
-const esc = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-export function renderConfirmation(g: GuestRecord, site: string) {
+/** @param {GuestRecord} g @param {string} site */
+export function renderConfirmation(g, site) {
   const first = (g.name ?? "").trim().split(/\s+/)[0] || "there";
   const party = g.guests && g.guests > 1 ? `You + ${g.guests - 1} guest${g.guests > 2 ? "s" : ""}` : "Just you";
-  const rows: [string, string][] = [
+  const rows = [
     ["Name", g.name ?? ""],
     ["Coming as", g.coming_as ?? ""],
     ["Party", party],
-    ...(g.favourite_look ? [["Favourite look", g.favourite_look] as [string, string]] : []),
+    ...(g.favourite_look ? [["Favourite look", g.favourite_look]] : []),
     ["WhatsApp", g.phone ?? ""],
   ];
   const subject = `You're on the guest list, ${first} — Outterspace Cowboy Series pop-up`;
