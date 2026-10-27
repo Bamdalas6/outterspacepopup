@@ -5,11 +5,9 @@ import "./globals.css";
 const display = Unbounded({ subsets: ["latin"], weight: ["500", "700", "800"], variable: "--f-display", display: "swap" });
 const text = Space_Grotesk({ subsets: ["latin"], variable: "--f-text", display: "swap" });
 
-// Link previews need full addresses. On Vercel this is the project's production domain (your own domain once one is
-// added as production); NEXT_PUBLIC_SITE_URL overrides it.
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://outterspacepopup.vercel.app");
+// Link previews need full addresses. This is the Cloudflare Pages address; set NEXT_PUBLIC_SITE_URL as a build variable
+// once the site has its own domain.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://outterspacepopup.pages.dev";
 
 const TITLE = "Outterspace — Cowboy Series Pop-Up";
 const DESCRIPTION = "The first Outterspace pop-up, November 2026. Join the guest list for the Cowboy Series SS26 and open the full lookbook.";

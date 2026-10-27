@@ -1,21 +1,22 @@
-// The guest list confirmation email (plain JavaScript so Vercel loads it with no compile step): a table-based layout with inline styles so it holds together in Gmail, Outlook and
-// Apple Mail, plus a plain-text version. Files starting with "_" in /api are helpers, not endpoints.
+// The guest list receipt email: a table-based layout with inline styles so it holds together in Gmail, Outlook and
+// Apple Mail, plus a plain-text version. /api/register sends it through Resend right after a guest is saved.
 
-/** @typedef {{ id?: string, name?: string, email?: string, phone?: string, instagram?: string | null, coming_as?: string, city?: string | null, guests?: number, favourite_look?: string | null }} GuestRecord */
+import type { Env } from "./env";
 
-const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+export type GuestRecord = { name?: string; email?: string; phone?: string; instagram?: string | null; coming_as?: string; guests?: number; favourite_look?: string | null };
 
-/** @param {GuestRecord} g @param {string} site */
-export function renderConfirmation(g, site) {
+const esc = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+export function renderConfirmation(g: GuestRecord, site: string) {
   const first = (g.name ?? "").trim().split(/\s+/)[0] || "there";
   const party = g.guests && g.guests > 1 ? `You + ${g.guests - 1} guest${g.guests > 2 ? "s" : ""}` : "Just you";
-  const rows = [
+  const rows: [string, string][] = [
     ["Name", g.name ?? ""],
     ["WhatsApp", g.phone ?? ""],
-    ...(g.instagram ? [["Instagram", g.instagram]] : []),
+    ...(g.instagram ? [["Instagram", g.instagram] as [string, string]] : []),
     ["Coming as", g.coming_as ?? ""],
     ["Party", party],
-    ...(g.favourite_look ? [["Favourite look", g.favourite_look]] : []),
+    ...(g.favourite_look ? [["Favourite look", g.favourite_look] as [string, string]] : []),
   ];
   const subject = `Your guest list receipt, ${first} — Outterspace Cowboy Series pop-up`;
 
@@ -68,4 +69,30 @@ export function renderConfirmation(g, site) {
   ].join("\n");
 
   return { subject, html, text };
+}
+
+/** Sends the receipt. Returns "sent", "failed" or "off" (email not set up), which is saved on the guest's row. */
+export async function sendReceipt(env: Env, guest: GuestRecord & { email: string }, site: string): Promise<"sent" | "failed" | "off"> {
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return "off";
+  const { subject, html, text } = renderConfirmation(guest, site);
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: env.EMAIL_FROM,
+        to: [guest.email],
+        subject,
+        html,
+        text,
+        ...(env.EMAIL_REPLY_TO ? { reply_to: env.EMAIL_REPLY_TO } : {}),
+        tags: [{ name: "kind", value: "guest_confirmation" }],
+      }),
+    });
+    if (r.ok) return "sent";
+    console.error(`receipt: Resend refused (${r.status}): ${await r.text().catch(() => "")}`);
+  } catch (e) {
+    console.error("receipt: could not reach Resend", e);
+  }
+  return "failed";
 }

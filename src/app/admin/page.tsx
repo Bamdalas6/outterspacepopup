@@ -1,24 +1,29 @@
 "use client";
 
-// The private guest list. Sign in with the email and password of a Supabase user whose email is in the `admins` table
-// (see SUPABASE_SETUP.md). The database itself enforces this: without an admin sign-in the list cannot be read at all.
-// Shows every registration with totals and a breakdown by "Coming as", and downloads the lot as an Excel file.
+// The private guest list. Admins sign in with their email and password (stored hashed in the site's own Cloudflare D1
+// database, see CLOUDFLARE_SETUP.md); the server only hands the list to a signed-in admin. Shows every registration with
+// totals and a breakdown by "Coming as", downloads the lot as an Excel file, and lets admins add or remove other admins.
+// The very first admin is created here with the one-time ADMIN_SETUP_CODE.
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { supabase, supabaseReady } from "@/lib/supabase";
 import { COMING_AS, type GuestRow } from "@/lib/rsvp";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
-async function fetchAll(): Promise<GuestRow[]> {
-  const rows: GuestRow[] = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase().from("guest_list").select("*").order("created_at", { ascending: false }).range(from, from + 999);
-    if (error) throw new Error(error.message);
-    rows.push(...((data ?? []) as GuestRow[]));
-    if (!data || data.length < 1000) return rows;
-  }
+type Session = { email: string | null; needsSetup?: boolean; setupAllowed?: boolean; error?: string };
+type Admin = { email: string; created_at: string; added_by: string | null };
+
+/** Calls the admin API. Throws the server's message on failure; a 401 also reports that the session ended. */
+async function api<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
+  const { json, ...rest } = init;
+  const res = await fetch(`/api/admin/${path}`, {
+    credentials: "same-origin",
+    ...rest,
+    ...(json !== undefined ? { body: JSON.stringify(json), headers: { "Content-Type": "application/json" } } : {}),
+  });
+  const body = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) throw Object.assign(new Error(body.error || `Request failed (${res.status})`), { status: res.status, body });
+  return body;
 }
 
 async function downloadExcel(rows: GuestRow[]) {
@@ -60,15 +65,18 @@ async function downloadExcel(rows: GuestRow[]) {
   ] as never).toFile(`outterspace-guest-list-${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
-function SignIn({ onError, error }: { onError: (e: string) => void; error: string }) {
+function SignIn({ onDone }: { onDone: (email: string) => void }) {
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    setBusy(true);
-    const { error } = await supabase().auth.signInWithPassword({ email: String(f.get("email")).trim(), password: String(f.get("password")) });
+    setBusy(true); setError("");
+    try {
+      const r = await api<{ email: string }>("login", { method: "POST", json: { email: String(f.get("email")).trim(), password: String(f.get("password")) } });
+      onDone(r.email);
+    } catch (err) { setError((err as Error).message); }
     setBusy(false);
-    if (error) onError(error.message === "Invalid login credentials" ? "That email and password do not match an admin account." : error.message);
   };
   return (
     <form className="admin-card admin-signin reg" onSubmit={submit}>
@@ -82,41 +90,131 @@ function SignIn({ onError, error }: { onError: (e: string) => void; error: strin
   );
 }
 
-export default function Admin() {
-  const [session, setSession] = useState<Session | null | undefined>(undefined);
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+function FirstAdmin({ allowed, onDone }: { allowed: boolean; onDone: (email: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    if (f.get("password") !== f.get("password2")) { setError("The two passwords are different."); return; }
+    setBusy(true); setError("");
+    try {
+      const r = await api<{ email: string }>("setup", { method: "POST", json: { code: String(f.get("code")).trim(), email: String(f.get("email")).trim(), password: String(f.get("password")) } });
+      onDone(r.email);
+    } catch (err) { setError((err as Error).message); }
+    setBusy(false);
+  };
+  if (!allowed) {
+    return <div className="admin-card"><h1 className="reg-title">Set up the first admin</h1><p className="reg-note">No admin exists yet. Add an <code>ADMIN_SETUP_CODE</code> secret to the Cloudflare project (see <b>CLOUDFLARE_SETUP.md</b>), then reload this page.</p></div>;
+  }
+  return (
+    <form className="admin-card admin-signin reg" onSubmit={submit}>
+      <h1 className="reg-title">Set up the first admin</h1>
+      <p className="reg-note">No admin exists yet. Enter the setup code you saved in Cloudflare, then choose the email and password you will sign in with. You can add more admins afterwards.</p>
+      <label className="reg-field"><span>Setup code</span><input name="code" type="password" autoComplete="off" required /></label>
+      <label className="reg-field"><span>Your email</span><input name="email" type="email" autoComplete="username" required /></label>
+      <label className="reg-field"><span>Password <i>at least 10 characters</i></span><input name="password" type="password" autoComplete="new-password" minLength={10} required /></label>
+      <label className="reg-field"><span>Password again</span><input name="password2" type="password" autoComplete="new-password" minLength={10} required /></label>
+      {error && <p className="reg-err" role="alert">{error}</p>}
+      <button className="btn reg-submit" type="submit" disabled={busy}>{busy ? "Creating…" : "Create admin and sign in"}</button>
+    </form>
+  );
+}
+
+function Admins({ me, onSessionEnded }: { me: string; onSessionEnded: () => void }) {
+  const [admins, setAdmins] = useState<Admin[] | null>(null);
+  const [error, setError] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const fail = useCallback((e: unknown) => { if ((e as { status?: number }).status === 401) onSessionEnded(); else setError((e as Error).message); }, [onSessionEnded]);
+  const load = useCallback(() => { api<{ admins: Admin[] }>("admins").then((r) => setAdmins(r.admins)).catch(fail); }, [fail]);
+  useEffect(load, [load]);
+
+  const add = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget, f = new FormData(form), email = String(f.get("email")).trim();
+    setBusy(true); setError(""); setNote("");
+    try {
+      await api("admins", { method: "POST", json: { email, password: String(f.get("password")) } });
+      form.reset(); setNote(`${email} can now sign in at /admin. Send them their starting password privately and ask them to change it.`); load();
+    } catch (err) { fail(err); }
+    setBusy(false);
+  };
+  const remove = async (email: string) => {
+    if (!confirm(`Remove ${email} as an admin? They will be signed out straight away.`)) return;
+    setError(""); setNote("");
+    try { await api(`admins?email=${encodeURIComponent(email)}`, { method: "DELETE" }); load(); } catch (err) { fail(err); }
+  };
+  const changePassword = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget, f = new FormData(form);
+    if (f.get("next") !== f.get("next2")) { setError("The two new passwords are different."); return; }
+    setError(""); setNote("");
+    try { await api("password", { method: "POST", json: { current: String(f.get("current")), next: String(f.get("next")) } }); form.reset(); setNote("Your password is changed."); }
+    catch (err) { fail(err); }
+  };
+
+  return (
+    <section className="admin-admins">
+      <div className="admin-head"><div><p className="micro">Access</p><h2 className="big admin-sub">Admins</h2></div></div>
+      {error && <p className="reg-err" role="alert">{error}</p>}
+      {note && <p className="reg-note admin-note" role="status">{note}</p>}
+      <div className="admin-grid">
+        <div className="admin-card">
+          <ul className="admin-list">
+            {(admins ?? []).map((a) => (
+              <li key={a.email}>
+                <span><b>{a.email}</b>{a.email.toLowerCase() === me.toLowerCase() ? " (you)" : ""}<small>Added {when(a.created_at)}{a.added_by && a.added_by !== "setup" ? ` by ${a.added_by}` : ""}</small></span>
+                {a.email.toLowerCase() !== me.toLowerCase() && (admins?.length ?? 0) > 1 && <button type="button" className="admin-remove" onClick={() => remove(a.email)}>Remove</button>}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <form className="admin-card reg" onSubmit={add}>
+          <p className="micro">Add an admin</p>
+          <label className="reg-field"><span>Their email</span><input name="email" type="email" autoComplete="off" required /></label>
+          <label className="reg-field"><span>Starting password <i>at least 10 characters</i></span><input name="password" type="text" autoComplete="off" minLength={10} required /></label>
+          <button className="pill" type="submit" disabled={busy}>{busy ? "Adding…" : "Add admin"}</button>
+        </form>
+        <form className="admin-card reg" onSubmit={changePassword}>
+          <p className="micro">Change my password</p>
+          <label className="reg-field"><span>Current password</span><input name="current" type="password" autoComplete="current-password" required /></label>
+          <label className="reg-field"><span>New password</span><input name="next" type="password" autoComplete="new-password" minLength={10} required /></label>
+          <label className="reg-field"><span>New password again</span><input name="next2" type="password" autoComplete="new-password" minLength={10} required /></label>
+          <button className="pill" type="submit">Change password</button>
+        </form>
+      </div>
+    </section>
+  );
+}
+
+export default function AdminPage() {
+  const [session, setSession] = useState<Session | undefined>(undefined);
   const [rows, setRows] = useState<GuestRow[] | null>(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<string>("All");
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (!supabaseReady) { setSession(null); return; }
-    const sb = supabase();
-    sb.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = sb.auth.onAuthStateChange((_e, s) => setSession(s));
-    return () => data.subscription.unsubscribe();
-  }, []);
-
-  const load = useCallback(async () => {
-    setBusy(true);
-    setError("");
-    try {
-      // The database only ever returns your own admins row, so any row back means you are an admin.
-      const { data, error } = await supabase().from("admins").select("email").limit(1).maybeSingle();
-      if (error) throw new Error(error.message);
-      setIsAdmin(!!data);
-      if (data) setRows(await fetchAll());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load the guest list.");
+  const checkSession = useCallback(async () => {
+    try { setSession(await api<Session>("session")); }
+    catch (e) {
+      const body = (e as { body?: Session; status?: number }).body;
+      if ((e as { status?: number }).status === 401 && body) setSession({ ...body, email: null });
+      else setSession({ email: null, error: (e as Error).message });
     }
-    setBusy(false);
   }, []);
+  useEffect(() => { checkSession(); }, [checkSession]);
 
-  // Load once per signed-in user; token refreshes hand over a new session object for the same person.
-  const userId = session?.user.id ?? null;
-  useEffect(() => { if (userId) load(); else { setRows(null); setIsAdmin(null); } }, [userId, load]);
+  const sessionEnded = useCallback(() => { setRows(null); setSession({ email: null }); }, []);
+  const load = useCallback(async () => {
+    setBusy(true); setError("");
+    try { setRows((await api<{ guests: GuestRow[] }>("guests")).guests); }
+    catch (e) { if ((e as { status?: number }).status === 401) sessionEnded(); else setError((e as Error).message); }
+    setBusy(false);
+  }, [sessionEnded]);
+  const me = session?.email ?? null;
+  useEffect(() => { if (me) load(); else setRows(null); }, [me, load]);
 
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -127,31 +225,31 @@ export default function Admin() {
 
   const remove = async (r: GuestRow) => {
     if (!confirm(`Remove ${r.name} (${r.email}) from the guest list? This cannot be undone.`)) return;
-    const { error } = await supabase().from("guest_list").delete().eq("id", r.id);
-    if (error) { setError(error.message); return; }
-    setRows((list) => (list ?? []).filter((x) => x.id !== r.id));
+    try { await api(`guests?id=${encodeURIComponent(r.id)}`, { method: "DELETE" }); setRows((list) => (list ?? []).filter((x) => x.id !== r.id)); }
+    catch (e) { if ((e as { status?: number }).status === 401) sessionEnded(); else setError((e as Error).message); }
   };
+  const signOut = async () => { await api("logout", { method: "POST" }).catch(() => {}); sessionEnded(); };
 
   return (
     <main className="admin">
       <header className="admin-top">
         <a href="/" className="nav-logo"><img src="/editorial/logo.png" alt="OUTTERSPACE" width={243} height={39} /></a>
-        {session && <button type="button" className="pill pill-small" onClick={() => supabase().auth.signOut()}>Sign out</button>}
+        {me && <button type="button" className="pill pill-small" onClick={signOut}>Sign out</button>}
       </header>
 
-      {!supabaseReady ? (
-        <div className="admin-card"><h1 className="reg-title">Not connected yet</h1><p className="reg-note">Add your Supabase URL and public key to <code>.env.local</code> (see <b>SUPABASE_SETUP.md</b>), then restart the site.</p></div>
-      ) : session === undefined ? (
+      {session === undefined ? (
         <p className="micro admin-wait">Loading…</p>
-      ) : !session ? (
-        <SignIn onError={setError} error={error} />
-      ) : isAdmin === false ? (
-        <div className="admin-card"><h1 className="reg-title">Not an admin</h1><p className="reg-note"><b>{session.user.email}</b> is signed in but is not in the <code>admins</code> table. Add it there in Supabase (see SUPABASE_SETUP.md), then reload.</p></div>
+      ) : session.error ? (
+        <div className="admin-card"><h1 className="reg-title">Not connected yet</h1><p className="reg-note">{session.error} See <b>CLOUDFLARE_SETUP.md</b>.</p></div>
+      ) : !me && session.needsSetup ? (
+        <FirstAdmin allowed={Boolean(session.setupAllowed)} onDone={(email) => setSession({ email })} />
+      ) : !me ? (
+        <SignIn onDone={(email) => setSession({ email })} />
       ) : (
         <section className="admin-body">
           <div className="admin-head">
             <div>
-              <p className="micro">Cowboy Series pop-up</p>
+              <p className="micro">Cowboy Series pop-up · signed in as {me}</p>
               <h1 className="big">Guest list</h1>
             </div>
             <div className="admin-actions">
@@ -177,7 +275,7 @@ export default function Admin() {
 
           <div className="admin-table">
             <table>
-              <thead><tr><th>Registered</th><th>Name</th><th>Phone / WhatsApp</th><th>Instagram</th><th>Email</th><th>Coming as</th><th>City</th><th>People</th><th>Favourite look</th><th /></tr></thead>
+              <thead><tr><th>Registered</th><th>Name</th><th>Phone / WhatsApp</th><th>Instagram</th><th>Email</th><th>Coming as</th><th>City</th><th>People</th><th>Favourite look</th><th>Receipt</th><th /></tr></thead>
               <tbody>
                 {shown.map((r) => (
                   <tr key={r.id}>
@@ -187,6 +285,7 @@ export default function Admin() {
                     <td><a href={`mailto:${r.email}`}>{r.email}</a></td>
                     <td><span className="admin-tag">{r.coming_as}</span></td><td>{r.city ?? "–"}</td>
                     <td>{r.guests}</td><td>{r.favourite_look ?? "–"}</td>
+                    <td>{r.email_status === "sent" ? "Sent" : r.email_status === "failed" ? "Failed" : r.email_status === "off" ? "Email off" : "–"}</td>
                     <td><button type="button" className="admin-remove" onClick={() => remove(r)} aria-label={`Remove ${r.name}`}>Remove</button></td>
                   </tr>
                 ))}
@@ -194,6 +293,8 @@ export default function Admin() {
             </table>
             {rows && shown.length === 0 && <p className="admin-empty">{rows.length ? "No registrations match." : "No registrations yet."}</p>}
           </div>
+
+          <Admins me={me} onSessionEnded={sessionEnded} />
         </section>
       )}
     </main>

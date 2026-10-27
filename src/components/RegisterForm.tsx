@@ -5,7 +5,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { pieces } from "@/data/collection";
-import { COMING_AS, EMAIL, PHONE, instagramHandle, saveRsvp, setGuest, type Rsvp } from "@/lib/rsvp";
+import { COMING_AS, EMAIL, PHONE, RsvpError, instagramHandle, saveRsvp, setGuest, type Rsvp } from "@/lib/rsvp";
 
 type Errors = Partial<Record<"name" | "phone" | "instagram" | "email" | "comingAs" | "consent" | "form", string>>;
 
@@ -50,9 +50,17 @@ export default function RegisterForm() {
     let result;
     try {
       result = await saveRsvp(entry);
-    } catch {
+    } catch (e) {
       setBusy(false);
-      setErrors({ form: "We could not reach the guest list just now. Check your connection and try again in a moment." });
+      // The server checks every field again; if it found a problem, show it next to that field.
+      const field = e instanceof RsvpError ? e.field : undefined;
+      if (field && field in ({ name: 1, phone: 1, instagram: 1, email: 1, comingAs: 1, consent: 1 } as const)) {
+        setErrors({ [field]: (e as Error).message } as Errors);
+      } else if (e instanceof RsvpError && e.message !== "Could not save the registration") {
+        setErrors({ form: e.message });
+      } else {
+        setErrors({ form: "We could not reach the guest list just now. Check your connection and try again in a moment." });
+      }
       return;
     }
     setBusy(false);

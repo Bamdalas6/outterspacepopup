@@ -1,0 +1,11 @@
+# Local secrets for `npm run cf:dev`. Copy this file to .dev.vars (it is git-ignored) and fill it in.
+# On Cloudflare these are set as secrets instead (CLOUDFLARE_SETUP.md, step 4).
+
+# Any long random string: signs admin sessions.
+SESSION_SECRET=change-me-to-a-long-random-string
+# Lets you create the first admin at /admin. Pick any code and keep it to yourself.
+ADMIN_SETUP_CODE=change-me
+# Optional locally: the receipt email (without these, guests are saved and the receipt is marked "Email off").
+RESEND_API_KEY=
+EMAIL_FROM=
+EMAIL_REPLY_TO=

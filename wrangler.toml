@@ -1,0 +1,12 @@
+# Cloudflare Pages project for the Outterspace pop-up guest list (see CLOUDFLARE_SETUP.md).
+# The site is the static export in ./out; the backend is the Pages Functions in ./functions; the guest list lives in D1.
+name = "outterspacepopup"
+compatibility_date = "2026-08-01"
+pages_build_output_dir = "out"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "outterspace-guests"
+# Paste the database_id that `npx wrangler d1 create outterspace-guests` prints (CLOUDFLARE_SETUP.md, step 2).
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

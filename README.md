@@ -16,43 +16,39 @@ and circle buttons, bento cards) in Next.js 16 with Motion.
 
 ```bash
 npm install
-npm run dev        # http://127.0.0.1:3400
+npm run dev        # the site only, http://127.0.0.1:3400 (the form needs the backend: use cf:dev to try it)
+npm run cf:dev     # site + backend on Cloudflare's local runtime, http://127.0.0.1:8788 (see CLOUDFLARE_SETUP.md)
 npm run build      # static site in ./out
-npm start          # serve ./out on http://127.0.0.1:3400
+npm run typecheck  # site and backend
 ```
 
-## Deploy on Vercel
+## Hosting: Cloudflare
 
-1. Sign in at https://vercel.com with GitHub, click **Add New → Project**, and import
-   **Bamdalas6/outterspacepopup**. (If it is not listed, click **Adjust GitHub App Permissions** and allow the repo.)
-2. Leave the build settings as Vercel shows them: `vercel.json` in this repo sets them (install `npm ci`, build
-   `npm run build`, serve the `out` folder) and overrides whatever the dashboard says.
-3. Open **Environment Variables** and add both, for Production, Preview and Development:
+The site runs on **Cloudflare Pages**, with its backend as **Pages Functions** and the guest list in a **D1** database.
+Follow **CLOUDFLARE_SETUP.md** once: sign in, create the database, deploy, add the secrets and create your admin.
 
-   | Name | Value |
-   | --- | --- |
-   | `NEXT_PUBLIC_SUPABASE_URL` | your Supabase Project URL |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | your Supabase publishable (anon) key |
-
-4. Click **Deploy**. Every push to `main` deploys again automatically; other branches get preview links.
-   If the site shows a Vercel login page, turn off **Settings → Deployment Protection → Vercel Authentication**.
-5. To use your own domain (for example `popup.outterspaceluxury.com`): Project → **Settings → Domains → Add**, then add
-   the DNS record Vercel shows at your domain provider.
-
-The variables are read when the site is built, so after changing one, redeploy (Deployments → ⋯ → **Redeploy**).
-Nothing else needs setting up in Supabase for Vercel: the admin sign-in uses email and password, not redirect links.
+| Path | What it is |
+| --- | --- |
+| `functions/api/register.ts` | `POST /api/register`: checks a registration again on the server, saves it and emails the receipt |
+| `functions/api/admin/*` | Admin sign-in, the guest list, removing guests, managing admins (guarded by `_middleware.ts`) |
+| `functions/api/health.ts` | `GET /api/health`: which settings are in place (yes/no only) |
+| `server/` | Shared backend code: password hashing and sessions, the receipt email, rate limits |
+| `src/lib/guest-rules.ts` | The registration rules, shared by the form and the server |
+| `migrations/` | The D1 tables |
+| `scripts/import-supabase-csv.mjs` | Copies registrations exported from the old Supabase project into D1 |
 
 ## Where registrations go
 
-Into a Supabase table (`guest_list`). Follow **SUPABASE_SETUP.md** once: create the project, run
-`supabase/schema.sql`, add yourself as an admin, and put the project URL and public key in `.env.local`.
+Into the D1 table `guest_list`.
 
 - **See and export them:** open `/admin`, sign in, and use **Download Excel** (two sheets: the full guest list and a
-  summary by Coming as, city and favourite look). You can also browse and export CSV in Supabase's Table Editor.
-- **Confirmation email:** every new guest gets a branded "See you there" email straight away, sent by
-  `api/guest-confirmation.mjs` through Resend when Supabase reports a new row. Set it up with **EMAIL_SETUP.md**.
+  summary by Coming as, city and favourite look). The Receipt column shows whether each guest's email went out.
+- **Receipt email:** every new guest gets a branded "See you there" email straight away, sent through Resend by
+  `/api/register` once their spot is saved.
+- **Admins:** the first admin is created at `/admin` with the one-time setup code; after that, admins add and remove
+  each other in the Admins panel. Passwords are stored only as salted hashes.
 - **Security:** the public site can only add registrations; only signed-in admins can read or remove them. One
-  registration per email.
+  registration per email; repeated sign-ups and password guesses from one connection are slowed down.
 
 Before launch: replace the date and venue wording in `src/components/Sections.tsx` and `Hero.tsx`, and the bracketed
 details in `src/app/privacy/page.tsx`.

@@ -6,13 +6,18 @@
     "dev": "next dev --port 3400",
     "build": "next build",
     "start": "npx --yes serve@14 out -l 3400",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p functions",
+    "cf:dev": "next build && wrangler pages dev --port 8788",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate": "wrangler d1 migrations apply DB --remote",
+    "deploy": "next build && wrangler pages deploy",
+    "import:supabase": "node scripts/import-supabase-csv.mjs",
+    "cf:serve": "wrangler pages dev --port 8788 --ip 127.0.0.1"
   },
   "engines": {
-    "node": "24.x"
+    "node": ">=20"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.118.0",
     "motion": "^14.3.0",
     "next": "^16.4.2",
     "react": "^19.3.1",
@@ -20,9 +25,11 @@
     "write-excel-file": "^4.1.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261027.1",
     "@types/node": "^22.20.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "wrangler": "^4.153.0"
   }
 }

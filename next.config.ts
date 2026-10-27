@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 
-// A fully static site: `next build` writes plain files to ./out. Vercel serves that with either project setting (the
-// Next.js preset, or Output Directory "out"), and so can any other host. The guest list talks to Supabase straight
-// from the browser, so there is no server code. Security and caching headers live in vercel.json, where Vercel applies
-// them to the static files.
+// A fully static site: `next build` writes plain files to ./out, which Cloudflare Pages serves. The backend (guest list,
+// admin sign-in, receipt email) is the Cloudflare Pages Functions in ./functions, with the data in D1 (wrangler.toml).
+// Security and caching headers for the static files live in public/_headers.
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
